@@ -3,3 +3,4 @@ tensorflow==2.17.0  # Updated to a stable, available version
 requests==2.31.0
 Pillow==10.2.0
 numpy==1.26.4
+gunicorn
