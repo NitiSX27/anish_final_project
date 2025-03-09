@@ -6,21 +6,50 @@ from tensorflow.keras.preprocessing import image
 import numpy as np
 from PIL import Image
 import io
+import threading
+import time
 
-app = Flask(__name__)
+# Create a Flask application with template folder specified
+app = Flask(__name__, 
+            template_folder='templates',
+            static_folder='static')
 
-# Load the new CNN model
-MODEL_PATH = 'mango_leaf_disease_model.h5'  # Path to the new model
-model = load_model(MODEL_PATH)
-
-# Weather API key (replace with your key)
-WEATHER_API_KEY = '5ac40f50de444f039bd161516250703'
+# Global variables
+model = None
+model_loaded = False
+model_loading = False
 
 # Disease labels sorted alphabetically to match training class indices
 DISEASES = sorted([
     'Healthy', 'Anthracnose', 'Bacterial Canker', 'Cutting Weevil',
     'Die Back', 'Gall Midge', 'Powdery Mildew', 'Sooty Mould'
 ])
+
+# Weather API key
+WEATHER_API_KEY = '5ac40f50de444f039bd161516250703'
+
+# Load model in a separate thread to prevent blocking app startup
+def load_ml_model():
+    global model, model_loaded, model_loading
+    
+    if model_loading or model_loaded:
+        return
+        
+    model_loading = True
+    print("Starting model loading...")
+    
+    try:
+        MODEL_PATH = 'mango_leaf_disease_model.h5'
+        model = load_model(MODEL_PATH)
+        model_loaded = True
+        print("Model loaded successfully!")
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+    finally:
+        model_loading = False
+
+# Start model loading in background
+threading.Thread(target=load_ml_model).start()
 
 # Image preprocessing function updated for 256x256 input
 def preprocess_image(img):
@@ -33,6 +62,15 @@ def preprocess_image(img):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/model-status')
+def model_status():
+    if model_loaded:
+        return jsonify({'status': 'loaded'})
+    elif model_loading:
+        return jsonify({'status': 'loading'})
+    else:
+        return jsonify({'status': 'not_loaded'})
 
 @app.route('/weather')
 def get_weather():
@@ -47,6 +85,15 @@ def get_weather():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    global model, model_loaded
+    
+    # Check if model is loaded
+    if not model_loaded:
+        # If model isn't loaded yet, try to load it
+        if not model_loading:
+            threading.Thread(target=load_ml_model).start()
+        return jsonify({'error': 'Model is still loading. Please try again in a moment.'}), 503
+    
     if 'image' not in request.files:
         return jsonify({'error': 'No image uploaded'}), 400
     
@@ -67,5 +114,11 @@ def predict():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Start model loading immediately
+    threading.Thread(target=load_ml_model).start()
+    
+    # Create uploads directory if it doesn't exist
     os.makedirs('uploads', exist_ok=True)
-    app.run(debug=True, host='0.0.0.0', port=3000)
+    
+    # Run the application
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
