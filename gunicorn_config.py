@@ -1,3 +1,8 @@
-timeout = 120  # Increase timeout to 2 minutes
-workers = 1    # Use fewer workers to reduce memory usage
-threads = 2    # Use threads instead of processes
+# Gunicorn configuration file
+bind = "0.0.0.0:10000"
+workers = 1
+threads = 2
+timeout = 120
+preload_app = False
+worker_class = "sync"
+loglevel = "info"
