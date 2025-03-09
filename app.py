@@ -9,25 +9,25 @@ import io
 
 app = Flask(__name__)
 
-# Load the MobileNetV3 model
-MODEL_PATH = 'mango_leaf_disease_MobileNetV3.h5'  # Updated model file
+# Load the new CNN model
+MODEL_PATH = 'mango_leaf_disease_model.h5'  # Path to the new model
 model = load_model(MODEL_PATH)
 
 # Weather API key (replace with your key)
 WEATHER_API_KEY = '5ac40f50de444f039bd161516250703'
 
-# Disease labels (confirm these match your training labels)
-DISEASES = [
+# Disease labels sorted alphabetically to match training class indices
+DISEASES = sorted([
     'Healthy', 'Anthracnose', 'Bacterial Canker', 'Cutting Weevil',
     'Die Back', 'Gall Midge', 'Powdery Mildew', 'Sooty Mould'
-]
+])
 
-# Image preprocessing function (MobileNetV3 typically uses 224x224)
+# Image preprocessing function updated for 256x256 input
 def preprocess_image(img):
-    img = img.resize((224, 224))  # MobileNetV3 default input size
+    img = img.resize((256, 256))  # New model input size
     img_array = image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)
-    img_array /= 255.0  # Normalize to [0, 1] (MobileNetV3 standard)
+    img_array /= 255.0  # Normalize to [0, 1]
     return img_array
 
 @app.route('/')
